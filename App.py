@@ -1,4 +1,3 @@
-import requests
 import pickle
 import streamlit as st
 import numpy as np
@@ -25,8 +24,7 @@ async def fetch_posters_batch(anime_ids, client_id="62986d92d36fbc6807be6cda6539
         results.extend(posters)
     return results
 
-
-    
+# Load data from pickle files
 anime = pickle.load(open('anime_list.pkl', 'rb'))
 similiary = pickle.load(open('model_similiarity.pkl', 'rb'))
 model_jaccard = pickle.load(open('model_jaccurd.pkl', 'rb'))
@@ -34,20 +32,20 @@ hidden_gem = pickle.load(open('hidden_gem_list.pkl','rb'))
 
 anime_list_combined = np.union1d(anime['title'].values, hidden_gem['title'].values)
 
-
 st.header('Your Anime Recommendation')
 
+# Dropdown for selecting anime title
 anime_dipilih = st.selectbox('Pilih judul anime', anime_list_combined)
 
-# Dropdown untuk memilih model
+# Dropdown for selecting similarity model
 model_choice = st.selectbox(
     'Pilih model similarity:',
     ['Cosine Similarity', 'Jaccard Similarity']
 )
 
-# Simpan indeks awal di session_state
+# Initialize session state variables if they do not exist
 if 'display_count' not in st.session_state:
-    st.session_state.display_count = 5  # Mulai dengan 5 rekomendasi
+    st.session_state.display_count = 5  # Start with 5 recommendations
 
 if 'anime_name' not in st.session_state:
     st.session_state.anime_name = []
@@ -55,11 +53,11 @@ if 'anime_name' not in st.session_state:
 if 'anime_img' not in st.session_state:
     st.session_state.anime_img = []
 
-if 'anime_links' not in st.session_state:  # Inisialisasi anime_links
+if 'anime_links' not in st.session_state:  # Initialize anime_links
     st.session_state.anime_links = []
 
 
-# Fungsi rekomendasi
+# Recommendation function
 def recommend_combined(animex, model):
     if animex in hidden_gem['title'].values:
         idx = hidden_gem[hidden_gem['title'] == animex].index[0]
@@ -76,15 +74,20 @@ def recommend_combined(animex, model):
     anime_recom = []
     anime_ids = []
     anime_links = []
-    for i in sim[1:21]:  # Ambil hingga 20 rekomendasi
-        anime_id = dataset.iloc[i[0]].anime_id
-        title = dataset.iloc[i[0]].title
-        # Tambahkan label jika berasal dari hidden gem
-        if title in hidden_gem['title'].values:
-            title = f"🌟 {title}"
-        anime_recom.append(title)
-        anime_ids.append(anime_id)
-        anime_links.append(f"https://myanimelist.net/anime/{anime_id}")
+    
+    # Ensure we do not access indices out of range
+    for i in sim[1:21]:  # Take up to 20 recommendations
+        if i[0] < len(dataset):  # Ensure index is within bounds
+            anime_id = dataset.iloc[i[0]].anime_id
+            title = dataset.iloc[i[0]].title
+            # Add label if it is from hidden gem
+            if title in hidden_gem['title'].values:
+                title = f"🌟 {title}"
+            anime_recom.append(title)
+            anime_ids.append(anime_id)
+            anime_links.append(f"https://myanimelist.net/anime/{anime_id}")
+        else:
+            continue  # Skip if index is out of range
 
     # Fetch posters asynchronously
     posters = run(fetch_posters_batch(anime_ids))
@@ -92,40 +95,35 @@ def recommend_combined(animex, model):
     return anime_recom, posters, anime_links
 
 
-
-
-# Tombol Show Recommend
+# Show recommendations button
 if st.button('Show Recommend'):
-    # Pilih model berdasarkan dropdown
+    # Select model based on dropdown choice
     selected_model = similiary if model_choice == 'Cosine Similarity' else model_jaccard
     anime_name, anime_img, anime_links = recommend_combined(anime_dipilih, selected_model)
     st.session_state.anime_name = anime_name
     st.session_state.anime_img = anime_img
     st.session_state.anime_links = anime_links
-    st.session_state.display_count = 5  # Reset jumlah yang ditampilkan
-  # Reset jumlah yang ditampilkan
+    st.session_state.display_count = 5  # Reset number displayed
 
-
-
-# Periksa apakah ada rekomendasi di session_state
+# Check if recommendations are in session state
 if st.session_state.anime_name and st.session_state.anime_img:
     anime_name = st.session_state.anime_name
     anime_img = st.session_state.anime_img
     anime_links = st.session_state.anime_links
     display_count = st.session_state.display_count
 
-    # Tampilkan anime berdasarkan jumlah yang telah ditentukan
+    # Display anime based on the number to show
     for row_start in range(0, display_count, 5):
-        cols = st.columns(5, gap="medium")  # Membuat layout kolom
+        cols = st.columns(5)  # Create columns layout
         for i, col in enumerate(cols):
             idx = row_start + i
-            if idx < len(anime_name):  # Pastikan tidak melebihi panjang daftar
+            if idx < len(anime_name):  # Ensure it does not exceed the list length
                 with col:
                     st.image(anime_img[idx], use_container_width=True)
-                    # Tampilkan judul sebagai link
+                    # Display title as a link
                     st.markdown(f"[{anime_name[idx]}]({anime_links[idx]})", unsafe_allow_html=True)
 
-    # Tambahkan tombol "Tampilkan Lainnya" jika masih ada rekomendasi tersisa
+    # Add "Show More" button if there are more recommendations
     if display_count < len(anime_name):
         if st.button('Tampilkan Lainnya'):
-            st.session_state.display_count += 5  # Tambah jumlah yang ditampilkan
+            st.session_state.display_count += 5  # Show 5 more recommendations
