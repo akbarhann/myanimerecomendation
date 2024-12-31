@@ -24,7 +24,8 @@ async def fetch_posters_batch(anime_ids, client_id="62986d92d36fbc6807be6cda6539
         results.extend(posters)
     return results
 
-# Load data from pickle files
+
+    
 anime = pickle.load(open('anime_list.pkl', 'rb'))
 similiary = pickle.load(open('model_similiarity.pkl', 'rb'))
 model_jaccard = pickle.load(open('model_jaccurd.pkl', 'rb'))
@@ -32,20 +33,39 @@ hidden_gem = pickle.load(open('hidden_gem_list.pkl','rb'))
 
 anime_list_combined = np.union1d(anime['title'].values, hidden_gem['title'].values)
 
-st.header('Your Anime Recommendation')
 
-# Dropdown for selecting anime title
+st.header('Your Anime Recommendation')
+if 'show_about' not in st.session_state:
+    st.session_state.show_about = False
+
+if st.button("About", key="about_button"):
+    st.session_state.show_about = not st.session_state.show_about
+
+if st.session_state.show_about:
+    st.markdown("""
+**Hidden Gem Recommendations** 🌟: Anime with low popularity but high ratings. These are the anime that might become your next favorite but are often overlooked.
+
+**Similarity Models:**
+- **Cosine Similarity**: Measures similarity by comparing the cosine of the angle between two vectors. 
+  Formula: 
+  $$ \\text{cosine similarity} = \\frac{A \cdot B}{||A|| \\times ||B||} $$
+
+- **Jaccard Similarity**: Measures similarity by comparing the intersection and union of two sets.
+  Formula: 
+  $$ \\text{Jaccard similarity} = \\frac{|A \cap B|}{|A \\cup B|} $$
+
+""")
 anime_dipilih = st.selectbox('Pilih judul anime', anime_list_combined)
 
-# Dropdown for selecting similarity model
+# Dropdown untuk memilih model
 model_choice = st.selectbox(
     'Pilih model similarity:',
     ['Cosine Similarity', 'Jaccard Similarity']
 )
 
-# Initialize session state variables if they do not exist
+# Simpan indeks awal di session_state
 if 'display_count' not in st.session_state:
-    st.session_state.display_count = 5  # Start with 5 recommendations
+    st.session_state.display_count = 5  # Mulai dengan 5 rekomendasi
 
 if 'anime_name' not in st.session_state:
     st.session_state.anime_name = []
@@ -53,11 +73,11 @@ if 'anime_name' not in st.session_state:
 if 'anime_img' not in st.session_state:
     st.session_state.anime_img = []
 
-if 'anime_links' not in st.session_state:  # Initialize anime_links
+if 'anime_links' not in st.session_state:  # Inisialisasi anime_links
     st.session_state.anime_links = []
 
 
-# Recommendation function
+# Fungsi rekomendasi
 def recommend_combined(animex, model):
     if animex in hidden_gem['title'].values:
         idx = hidden_gem[hidden_gem['title'] == animex].index[0]
@@ -74,20 +94,15 @@ def recommend_combined(animex, model):
     anime_recom = []
     anime_ids = []
     anime_links = []
-    
-    # Ensure we do not access indices out of range
-    for i in sim[1:21]:  # Take up to 20 recommendations
-        if i[0] < len(dataset):  # Ensure index is within bounds
-            anime_id = dataset.iloc[i[0]].anime_id
-            title = dataset.iloc[i[0]].title
-            # Add label if it is from hidden gem
-            if title in hidden_gem['title'].values:
-                title = f"🌟 {title}"
-            anime_recom.append(title)
-            anime_ids.append(anime_id)
-            anime_links.append(f"https://myanimelist.net/anime/{anime_id}")
-        else:
-            continue  # Skip if index is out of range
+    for i in sim[1:21]:  # Ambil hingga 20 rekomendasi
+        anime_id = dataset.iloc[i[0]].anime_id
+        title = dataset.iloc[i[0]].title
+        # Tambahkan label jika berasal dari hidden gem
+        if title in hidden_gem['title'].values:
+            title = f"🌟 {title}"
+        anime_recom.append(title)
+        anime_ids.append(anime_id)
+        anime_links.append(f"https://myanimelist.net/anime/{anime_id}")
 
     # Fetch posters asynchronously
     posters = run(fetch_posters_batch(anime_ids))
@@ -95,46 +110,34 @@ def recommend_combined(animex, model):
     return anime_recom, posters, anime_links
 
 
-# Show recommendations button
 if st.button('Show Recommend'):
-    # Select model based on dropdown choice
+    # Pilih model berdasarkan dropdown
     selected_model = similiary if model_choice == 'Cosine Similarity' else model_jaccard
     anime_name, anime_img, anime_links = recommend_combined(anime_dipilih, selected_model)
     st.session_state.anime_name = anime_name
     st.session_state.anime_img = anime_img
     st.session_state.anime_links = anime_links
-    st.session_state.display_count = 5  # Reset number displayed
+    st.session_state.display_count = 5 
 
-# Check if recommendations are in session state
+
+
 if st.session_state.anime_name and st.session_state.anime_img:
     anime_name = st.session_state.anime_name
     anime_img = st.session_state.anime_img
     anime_links = st.session_state.anime_links
     display_count = st.session_state.display_count
 
-    # Ensure both anime_name and anime_img have the same length
-    if len(anime_name) != len(anime_img):
-        st.error("Jumlah gambar anime tidak sesuai dengan jumlah judul anime.")
-    else:
-        # Display anime based on the number to show
-        for row_start in range(0, display_count, 5):
-            cols = st.columns(5)  # Create columns layout
-            for i, col in enumerate(cols):
-                idx = row_start + i
-                if idx < len(anime_name):  # Ensure it does not exceed the list length
-                    with col:
-                        # Handle cases where the image may be None or invalid
-                        if anime_img[idx]:
-                            try:
-                                st.image(anime_img[idx], use_container_width=True)
-                            except Exception as e:
-                                st.error(f"Error displaying image for {anime_name[idx]}: {str(e)}")
-                        else:
-                            st.warning(f"Gambar tidak tersedia untuk {anime_name[idx]}")
-                        # Display title as a link
-                        st.markdown(f"[{anime_name[idx]}]({anime_links[idx]})", unsafe_allow_html=True)
+    for row_start in range(0, display_count, 5):
+        cols = st.columns(5, gap="medium")  # Membuat layout kolom
+        for i, col in enumerate(cols):
+            idx = row_start + i
+            if idx < len(anime_name):  # Pastikan tidak melebihi panjang daftar
+                with col:
+                    st.image(anime_img[idx], use_container_width=True)
+                    # Tampilkan judul sebagai link
+                    st.markdown(f"[{anime_name[idx]}]({anime_links[idx]})", unsafe_allow_html=True)
 
-        # Add "Show More" button if there are more recommendations
-        if display_count < len(anime_name):
-            if st.button('Tampilkan Lainnya'):
-                st.session_state.display_count += 5  # Show 5 more recommendations
+    # Tambahkan tombol "Tampilkan Lainnya" jika masih ada rekomendasi tersisa
+    if display_count < len(anime_name):
+        if st.button('Tampilkan Lainnya'):
+            st.session_state.display_count += 5  # Tambah jumlah yang ditampilkan
