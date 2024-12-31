@@ -2,3 +2,4 @@ streamlit==1.2.0
 numpy==2.0
 aiohttp==3.9.0b0
 protobuf==3.20.3
+setuptools>=65.0.0
