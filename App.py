@@ -125,7 +125,10 @@ if st.session_state.anime_name and st.session_state.anime_img:
                     with col:
                         # Handle cases where the image may be None or invalid
                         if anime_img[idx]:
-                            st.image(anime_img[idx], use_container_width=True)
+                            try:
+                                st.image(anime_img[idx], use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error displaying image for {anime_name[idx]}: {str(e)}")
                         else:
                             st.warning(f"Gambar tidak tersedia untuk {anime_name[idx]}")
                         # Display title as a link
