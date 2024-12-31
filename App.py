@@ -112,18 +112,26 @@ if st.session_state.anime_name and st.session_state.anime_img:
     anime_links = st.session_state.anime_links
     display_count = st.session_state.display_count
 
-    # Display anime based on the number to show
-    for row_start in range(0, display_count, 5):
-        cols = st.columns(5)  # Create columns layout
-        for i, col in enumerate(cols):
-            idx = row_start + i
-            if idx < len(anime_name):  # Ensure it does not exceed the list length
-                with col:
-                    st.image(anime_img[idx], use_container_width=True)
-                    # Display title as a link
-                    st.markdown(f"[{anime_name[idx]}]({anime_links[idx]})", unsafe_allow_html=True)
+    # Ensure both anime_name and anime_img have the same length
+    if len(anime_name) != len(anime_img):
+        st.error("Jumlah gambar anime tidak sesuai dengan jumlah judul anime.")
+    else:
+        # Display anime based on the number to show
+        for row_start in range(0, display_count, 5):
+            cols = st.columns(5)  # Create columns layout
+            for i, col in enumerate(cols):
+                idx = row_start + i
+                if idx < len(anime_name):  # Ensure it does not exceed the list length
+                    with col:
+                        # Handle cases where the image may be None or invalid
+                        if anime_img[idx]:
+                            st.image(anime_img[idx], use_container_width=True)
+                        else:
+                            st.warning(f"Gambar tidak tersedia untuk {anime_name[idx]}")
+                        # Display title as a link
+                        st.markdown(f"[{anime_name[idx]}]({anime_links[idx]})", unsafe_allow_html=True)
 
-    # Add "Show More" button if there are more recommendations
-    if display_count < len(anime_name):
-        if st.button('Tampilkan Lainnya'):
-            st.session_state.display_count += 5  # Show 5 more recommendations
+        # Add "Show More" button if there are more recommendations
+        if display_count < len(anime_name):
+            if st.button('Tampilkan Lainnya'):
+                st.session_state.display_count += 5  # Show 5 more recommendations
